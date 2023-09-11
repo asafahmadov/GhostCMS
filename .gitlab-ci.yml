@@ -1,0 +1,81 @@
+variables:
+  SECURE_ANALYZERS_PREFIX: "$CI_TEMPLATE_REGISTRY_HOST/security-products"
+  SECRET_DETECTION_IMAGE_SUFFIX: ""
+  SECRETS_ANALYZER_VERSION: "5"
+  SECRET_DETECTION_EXCLUDED_PATHS: ""
+
+stages:
+  - sast
+  - secret_detection
+  - build
+  - container_scan
+  - gkedeploy
+
+snyk_sast_sca_scan:
+  stage: sast
+  image: 
+    name: snyk/snyk-cli:1.1205.0-docker
+    entrypoint: [""]
+  script:
+    - npm install -g npm@latest
+    - npm install -g synk
+    - echo $SNYK_TOKEN
+    - snyk auth $SNYK_TOKEN -d
+    - snyk code test --org=785253e7-a8e7-412e-a88b-b1f89e0e2d08
+  allow_failure: true
+
+services:
+  - docker:dind
+
+build_image:
+  stage: build
+  image: docker:latest
+  script:
+    - docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_PASSWORD" 
+    - VERSION=$(cat version.txt)
+    - docker build -t asafahmad/ghost:$VERSION .
+    - docker push asafahmad/ghost:$VERSION
+
+snyk_container_security:
+  stage: container_scan
+  image: 
+    name: snyk/snyk-cli:1.1205.0-docker
+    entrypoint: [""]
+  script:
+    - npm install -g npm@latest
+    - npm install -g synk
+    - snyk auth $SNYK_TOKEN
+    - snyk container monitor asafahmad/ghost:v5 --org=785253e7-a8e7-412e-a88b-b1f89e0e2d08
+  allow_failure: true    
+
+gcloud_deploy:
+  stage: gkedeploy
+  image: google/cloud-sdk
+  script:
+    - echo "$GCLOUD_SERVICE_KEY" | base64 -d > gcloud-service-key.json
+    - gcloud auth activate-service-account --key-file gcloud-service-key.json
+    - gcloud config set project mythical-cider-396513
+    - gcloud config set container/cluster ghost-cluster
+    - gcloud config set compute/zone asia-east1-a
+    - gcloud container clusters get-credentials ghost-cluster --zone asia-east1-a --project mythical-cider-396513
+    - kubectl apply -f k8s/ghost/ghost-dep.yaml
+
+.secret-analyzer:
+  stage: secret_detection
+  image: "$SECURE_ANALYZERS_PREFIX/secrets:$SECRETS_ANALYZER_VERSION$SECRET_DETECTION_IMAGE_SUFFIX"
+  services: []
+  allow_failure: true
+  variables:
+    GIT_DEPTH: "50"
+  artifacts:
+    reports:
+      secret_detection: gl-secret-detection-report.json
+
+secret_detection:
+  extends: .secret-analyzer
+  rules:
+    - if: $SECRET_DETECTION_DISABLED == 'true' || $SECRET_DETECTION_DISABLED == '1'
+      when: never
+    - if: $CI_COMMIT_BRANCH
+  script:
+    - /analyzer run
