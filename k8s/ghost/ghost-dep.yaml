@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ghost
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ghost
+  template:
+    metadata:
+      labels:
+        app: ghost
+    spec:
+      containers:
+      - name: ghost
+        image: asafahmad/ghost:v5
+        env:
+        - name: database__client
+          value: mysql
+        - name: database__connection__host
+          valueFrom:
+            secretKeyRef:
+              name: ghost-secret
+              key: database__connection__host
+        - name: database__connection__user
+          valueFrom:
+            secretKeyRef:
+              name: ghost-secret
+              key: database__connection__user
+        - name: database__connection__password
+          valueFrom:
+            secretKeyRef:
+              name: ghost-secret
+              key: database__connection__password
+        - name: database__connection__database
+          valueFrom:
+            secretKeyRef:
+              name: ghost-secret
+              key: database__connection__database
+        - name: url
+          valueFrom:
+            configMapKeyRef:
+              name: ghost-config
+              key: url
+        ports:
+        - containerPort: 2368
+        volumeMounts:
+        - name: ghost-content
+          mountPath: /var/lib/ghost/content
+      volumes:
+      - name: ghost-content
+        persistentVolumeClaim:
+          claimName: ghost-pvc
