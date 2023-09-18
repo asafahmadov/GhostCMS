@@ -90,3 +90,19 @@ This command lists the current pods and services. Ensure all pods are in the `RU
 ## Accessing the Ghost Blog
 
 Once all resources are running, you can access the Ghost blog through the service IP or DNS name associated with the Nginx service.
+
+
+## Documentation
+
+[Documentation](https://asafahmadov.gitbook.io/hands-on-projects/)
+
+
+## 🚀 About Me
+I'm a DevSecOps engineer
+
+
+## 🔗 Links
+
+[![linkedin](https://img.shields.io/badge/linkedin-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/asaf-ahmadov/)
+
+
